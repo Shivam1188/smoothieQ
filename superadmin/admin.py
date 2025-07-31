@@ -1,11 +1,5 @@
 from django.contrib import admin
-from .models import AdminPlan, MonthlyRestaurantCount, CallRecord, UserActivity, PlanPayment, SubscriptionPlan
-# Register your models here.
-
-@admin.register(AdminPlan)
-class AdminPlanAdmin(admin.ModelAdmin):
-    list_display = ('plan_type', 'resturent', 'monthly_revenue', 'growth')
-    search_fields = ('resturent', 'plan_type')
+from .models import MonthlyRestaurantCount, CallRecord, UserActivity, PlanPayment, SubscriptionPlan
 
 
 class MonthlyRestaurantCountAdmin(admin.ModelAdmin):

@@ -2,19 +2,6 @@ from django.db import models
 from subadmin.models import SubAdminProfile
 from django.conf import settings
 
-# Create your models here.
-
-
-class AdminPlan(models.Model):
-    plan_type = models.CharField(max_length=100)
-    resturent = models.CharField(max_length=100)
-    monthly_revenue = models.CharField(max_length=100)
-    growth = models.CharField(max_length=100)
-
-    def __str__(self):
-        return f"{self.plan_type} - {self.resturent}"
-
-
 
 
 class SubscriptionPlan(models.Model):
@@ -63,6 +50,7 @@ class CallRecord(models.Model):
     restaurant = models.ForeignKey(SubAdminProfile, on_delete=models.CASCADE, related_name='call_records')
     call_sid = models.CharField(max_length=34, unique=True, null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='in-progress')
+    duration = models.PositiveIntegerField(help_text="Duration in seconds", null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
     

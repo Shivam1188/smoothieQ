@@ -1,11 +1,11 @@
 from rest_framework import serializers
-from .models import AdminPlan, PlanPayment, CallRecord
+from .models import PlanPayment, SubscriptionPlan
 from subadmin.models import SubAdminProfile
 
 
-class AdminPlanSerializer(serializers.ModelSerializer):
+class SubscriptionPlanSerializer(serializers.ModelSerializer):
     class Meta:
-        model = AdminPlan
+        model = SubscriptionPlan
         fields = '__all__'
     
 
@@ -17,13 +17,3 @@ class PlanPaymentSerializer(serializers.ModelSerializer):
 
 
 
-
-class CallRecordSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = CallRecord
-        fields = ['id', 'call_sid', 'status', 'created_at']
-
-class CallStatisticsSerializer(serializers.Serializer):
-    today_calls = serializers.IntegerField()
-    percentage_change = serializers.FloatField()
-    trend_direction = serializers.CharField()

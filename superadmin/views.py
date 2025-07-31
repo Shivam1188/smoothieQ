@@ -1,7 +1,7 @@
 from rest_framework import viewsets, status
-from .models import AdminPlan
+from .models import SubscriptionPlan
 from rest_framework.response import Response
-from .serializers import AdminPlanSerializer, PlanPaymentSerializer
+from .serializers import PlanPaymentSerializer,SubscriptionPlanSerializer
 from .permissions import IsSuperUserOrReadOnly
 from rest_framework.permissions import IsAuthenticated
 from datetime import datetime, timedelta
@@ -28,9 +28,9 @@ User = get_user_model()
 
 
 
-class AdminPlanViewSet(viewsets.ModelViewSet):
-    queryset = AdminPlan.objects.all()
-    serializer_class = AdminPlanSerializer
+class SubscriptionPlanViewSet(viewsets.ModelViewSet):
+    queryset = SubscriptionPlan.objects.all()
+    serializer_class = SubscriptionPlanSerializer
     permission_classes = [IsAuthenticated, IsSuperUserOrReadOnly]
 
     def destroy(self, request, *args, **kwargs):
@@ -86,32 +86,28 @@ class RestaurantCountView(APIView):
 
 class CallStatisticsView(APIView):
     def get(self, request, format=None):
-        # Get current month and previous month
         today = timezone.now().date()
         first_day_current_month = today.replace(day=1)
         first_day_last_month = (first_day_current_month - timedelta(days=1)).replace(day=1)
-        
-        # Current month calls
+
+        # Use 'created_at' instead of 'timestamp'
         current_month_calls = CallRecord.objects.filter(
-            timestamp__year=first_day_current_month.year,
-            timestamp__month=first_day_current_month.month
+            created_at__year=first_day_current_month.year,
+            created_at__month=first_day_current_month.month
         ).count()
-        
-        # Last month calls
+
         last_month_calls = CallRecord.objects.filter(
-            timestamp__year=first_day_last_month.year,
-            timestamp__month=first_day_last_month.month
+            created_at__year=first_day_last_month.year,
+            created_at__month=first_day_last_month.month
         ).count()
-        
-        # Calculate percentage change
+
         if last_month_calls > 0:
             percentage_change = ((current_month_calls - last_month_calls) / last_month_calls) * 100
         else:
             percentage_change = 0
-        
-        # Total calls (all time)
+
         total_calls = CallRecord.objects.count()
-        
+
         data = {
             'total_calls_handled': total_calls,
             'current_month_calls': current_month_calls,
@@ -119,54 +115,55 @@ class CallStatisticsView(APIView):
             'percentage_change': round(percentage_change, 1),
             'trend': 'up' if percentage_change >= 0 else 'down'
         }
-        
-        return Response(data, status=status.HTTP_200_OK)
-    
 
+        return Response(data, status=status.HTTP_200_OK)
+
+    
+from django.db.models import F, ExpressionWrapper, DurationField
 
 class CallDurationStatisticsView(APIView):
     def get(self, request, format=None):
-        # Get current month and previous month
         today = timezone.now().date()
         first_day_current_month = today.replace(day=1)
         first_day_last_month = (first_day_current_month - timedelta(days=1)).replace(day=1)
-        
-        # Current month average duration (in seconds)
+
+        # Current month average duration
         current_month_avg = CallRecord.objects.filter(
-            timestamp__year=first_day_current_month.year,
-            timestamp__month=first_day_current_month.month
+            created_at__year=first_day_current_month.year,
+            created_at__month=first_day_current_month.month
         ).aggregate(avg_duration=Avg('duration'))['avg_duration'] or 0
-        
+
         # Last month average duration
         last_month_avg = CallRecord.objects.filter(
-            timestamp__year=first_day_last_month.year,
-            timestamp__month=first_day_last_month.month
+            created_at__year=first_day_last_month.year,
+            created_at__month=first_day_last_month.month
         ).aggregate(avg_duration=Avg('duration'))['avg_duration'] or 0
-        
+
         # Convert seconds to minutes:seconds format
         def format_duration(seconds):
-            if seconds is None:
+            if not seconds:
                 return "0:00"
             minutes = int(seconds // 60)
-            seconds = int(seconds % 60)
-            return f"{minutes}:{seconds:02d}"
-        
+            remaining_seconds = int(seconds % 60)
+            return f"{minutes}:{remaining_seconds:02d}"
+
         # Calculate percentage change
         if last_month_avg > 0:
             percentage_change = ((current_month_avg - last_month_avg) / last_month_avg) * 100
         else:
             percentage_change = 0
-        
+
         data = {
             'average_duration': format_duration(current_month_avg),
-            'average_duration_seconds': current_month_avg,
+            'average_duration_seconds': round(current_month_avg),
             'last_month_average': format_duration(last_month_avg),
-            'last_month_average_seconds': last_month_avg,
+            'last_month_average_seconds': round(last_month_avg),
             'percentage_change': round(percentage_change, 1),
             'trend': 'up' if percentage_change >= 0 else 'down'
         }
-        
+
         return Response(data, status=status.HTTP_200_OK)
+
     
 
 

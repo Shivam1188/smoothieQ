@@ -1,9 +1,9 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import AdminPlanViewSet, RestaurantCountView, CallStatisticsView, CallDurationStatisticsView, ActiveUserStatisticsView, CreateStripeCheckoutSession, stripe_webhook
+from .views import SubscriptionPlanViewSet, RestaurantCountView, CallStatisticsView, CallDurationStatisticsView, ActiveUserStatisticsView, CreateStripeCheckoutSession, stripe_webhook
 
 router = DefaultRouter()
-router.register(r'admin-plans', AdminPlanViewSet, basename='adminplan')
+router.register(r'admin-plans', SubscriptionPlanViewSet, basename='adminplan')
 
 
 urlpatterns = [
