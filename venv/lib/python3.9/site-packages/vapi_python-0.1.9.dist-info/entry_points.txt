@@ -1,0 +1,2 @@
+[console_scripts]
+vapi_python = vapi_python.cli:main

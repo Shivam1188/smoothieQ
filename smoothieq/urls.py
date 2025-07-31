@@ -24,5 +24,5 @@ urlpatterns = [
     path('api/auth/', include('authentication.urls')),
     path('api/superadmin/', include('superadmin.urls')),
     path('api/subadmin/', include('subadmin.urls')),
-    path('api/user/', include('user.url')),
+    path('api/twilio_bot/', include('twilio_bot.urls'))
 ]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
 from pathlib import Path
+from datetime import timedelta
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -38,13 +39,21 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'corsheaders',
     'rest_framework',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
     'authentication',
     'subadmin',
     'superadmin',
-    'user',
+    'twilio_bot',
 ]
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+]
+
+CORS_ALLOW_ALL_ORIGINS = True
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
@@ -60,6 +69,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
 ]
 
 ROOT_URLCONF = 'smoothieq.urls'
@@ -121,7 +131,7 @@ LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 
 USE_I18N = True
-
+  
 USE_TZ = True
 
 
@@ -134,4 +144,43 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),    
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),     
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'AUTH_HEADER_TYPES': ('Bearer',),
+}
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+SUPPORT_EMAIL="SmoothieQ@yopmail.com"
+COMPANY_NAME="SmoothieQ"
+FRONTEND_URL = "https://yourfrontend.com"
+DEFAULT_FROM_EMAIL = "testampli2023@gmail.com"
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com' 
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'testampli2023@gmail.com'
+EMAIL_HOST_PASSWORD = 'iopr mlgp lrnz umgf'
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+TWILIO_ACCOUNT_SID = 'ACb779f9a2de32b2dc771eb17cb46fefb6'
+TWILIO_AUTH_TOKEN = '2e5a684e0ab7fc8f3d68446096b0d9f4'
+TWILIO_PHONE_NUMBER = '+12765959018'  
+
+
+OPENAI_API_KEY='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'
+
+
+
+FRONTEND_URL = "http://localhost:5173"
+
+
+
+STRIPE_SECRET_KEY = "sk_test_51RqRQSPOKs5AzhXdgjyzmwJZ3Ek71SLntHlsEiFEtSQ554IcTc5fWYWwhCNWX6ON8Jw9EkvbG5RADtsvjxlWBJhl00esMBf5gy"
+STRIPE_PUBLIC_KEY = "pk_test_51RqRQSPOKs5AzhXdhs6NifhPzEXepO8c1949PtVuHZ66sXy0MzSiUES8ora8itbrljN2cHOACTszHLCdesIX6QAj00jdj9LEJW"
+DOMAIN_URL = "http://localhost:8000" 
+STRIPE_WEBHOOK_SECRET ="whsec_kp8H1JBF1twrxb7QU6HweMnKL9dbVCsr"

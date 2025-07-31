@@ -1,6 +1,351 @@
-from django.shortcuts import render, HttpResponse
+from rest_framework import viewsets, status
+from .models import AdminPlan
+from rest_framework.response import Response
+from .serializers import AdminPlanSerializer, PlanPaymentSerializer
+from .permissions import IsSuperUserOrReadOnly
+from rest_framework.permissions import IsAuthenticated
+from datetime import datetime, timedelta
+from .models import MonthlyRestaurantCount, CallRecord, UserActivity, PlanPayment
+from subadmin.models import SubAdminProfile
+from rest_framework.views import APIView
+from datetime import datetime, timedelta
+from django.utils import timezone
+from django.db.models import Avg
+from django.contrib.auth import get_user_model
+import uuid
+import requests
+from django.conf import settings
+from rest_framework import status
+from rest_framework.decorators import api_view
+import stripe
+from django.views.decorators.csrf import csrf_exempt
+from django.http import HttpResponse, JsonResponse
+from django.shortcuts import render
 
-# Create your views here.
 
-def superadmin(request):
-    return HttpResponse('hello welcome to the superadmin api')
+
+User = get_user_model()
+
+
+
+class AdminPlanViewSet(viewsets.ModelViewSet):
+    queryset = AdminPlan.objects.all()
+    serializer_class = AdminPlanSerializer
+    permission_classes = [IsAuthenticated, IsSuperUserOrReadOnly]
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        return Response({"message": "Successfully deleted"}, status=status.HTTP_200_OK)
+    
+
+
+class RestaurantCountView(APIView):
+    def get(self, request, format=None):
+        current_count = SubAdminProfile.objects.count()
+        
+        # Get current month and previous month
+        today = datetime.now().date()
+        first_day_current_month = today.replace(day=1)
+        first_day_last_month = (first_day_current_month - timedelta(days=1)).replace(day=1)
+        
+        # Get or create current month record
+        current_month_record, _ = MonthlyRestaurantCount.objects.get_or_create(
+            month=first_day_current_month,
+            defaults={'count': current_count}
+        )
+        
+        # Update if count has changed
+        if current_month_record.count != current_count:
+            current_month_record.count = current_count
+            current_month_record.save()
+        
+        # Get last month's record
+        try:
+            last_month_record = MonthlyRestaurantCount.objects.get(month=first_day_last_month)
+            last_month_count = last_month_record.count
+        except MonthlyRestaurantCount.DoesNotExist:
+            last_month_count = current_count  # or 0 if you prefer
+        
+        # Calculate percentage change
+        if last_month_count > 0:
+            percentage_change = ((current_count - last_month_count) / last_month_count) * 100
+        else:
+            percentage_change = 0
+        
+        data = {
+            'total_restaurants': current_count,
+            'percentage_change': round(percentage_change, 1),
+            'trend': 'up' if percentage_change >= 0 else 'down',
+            'last_month_count': last_month_count
+        }
+        
+        return Response(data, status=status.HTTP_200_OK)
+    
+
+
+class CallStatisticsView(APIView):
+    def get(self, request, format=None):
+        # Get current month and previous month
+        today = timezone.now().date()
+        first_day_current_month = today.replace(day=1)
+        first_day_last_month = (first_day_current_month - timedelta(days=1)).replace(day=1)
+        
+        # Current month calls
+        current_month_calls = CallRecord.objects.filter(
+            timestamp__year=first_day_current_month.year,
+            timestamp__month=first_day_current_month.month
+        ).count()
+        
+        # Last month calls
+        last_month_calls = CallRecord.objects.filter(
+            timestamp__year=first_day_last_month.year,
+            timestamp__month=first_day_last_month.month
+        ).count()
+        
+        # Calculate percentage change
+        if last_month_calls > 0:
+            percentage_change = ((current_month_calls - last_month_calls) / last_month_calls) * 100
+        else:
+            percentage_change = 0
+        
+        # Total calls (all time)
+        total_calls = CallRecord.objects.count()
+        
+        data = {
+            'total_calls_handled': total_calls,
+            'current_month_calls': current_month_calls,
+            'last_month_calls': last_month_calls,
+            'percentage_change': round(percentage_change, 1),
+            'trend': 'up' if percentage_change >= 0 else 'down'
+        }
+        
+        return Response(data, status=status.HTTP_200_OK)
+    
+
+
+class CallDurationStatisticsView(APIView):
+    def get(self, request, format=None):
+        # Get current month and previous month
+        today = timezone.now().date()
+        first_day_current_month = today.replace(day=1)
+        first_day_last_month = (first_day_current_month - timedelta(days=1)).replace(day=1)
+        
+        # Current month average duration (in seconds)
+        current_month_avg = CallRecord.objects.filter(
+            timestamp__year=first_day_current_month.year,
+            timestamp__month=first_day_current_month.month
+        ).aggregate(avg_duration=Avg('duration'))['avg_duration'] or 0
+        
+        # Last month average duration
+        last_month_avg = CallRecord.objects.filter(
+            timestamp__year=first_day_last_month.year,
+            timestamp__month=first_day_last_month.month
+        ).aggregate(avg_duration=Avg('duration'))['avg_duration'] or 0
+        
+        # Convert seconds to minutes:seconds format
+        def format_duration(seconds):
+            if seconds is None:
+                return "0:00"
+            minutes = int(seconds // 60)
+            seconds = int(seconds % 60)
+            return f"{minutes}:{seconds:02d}"
+        
+        # Calculate percentage change
+        if last_month_avg > 0:
+            percentage_change = ((current_month_avg - last_month_avg) / last_month_avg) * 100
+        else:
+            percentage_change = 0
+        
+        data = {
+            'average_duration': format_duration(current_month_avg),
+            'average_duration_seconds': current_month_avg,
+            'last_month_average': format_duration(last_month_avg),
+            'last_month_average_seconds': last_month_avg,
+            'percentage_change': round(percentage_change, 1),
+            'trend': 'up' if percentage_change >= 0 else 'down'
+        }
+        
+        return Response(data, status=status.HTTP_200_OK)
+    
+
+
+class ActiveUserStatisticsView(APIView):
+    def get(self, request, format=None):
+        # Define what "active" means (e.g., logged in within last 30 days)
+        active_threshold = timezone.now() - timedelta(days=30)
+        
+        # Count current active users
+        # Option 1 (using last_login):
+        current_active_count = User.objects.filter(last_login__gte=active_threshold).count()
+        
+        # Option 2 (using UserActivity model):
+        # current_active_count = UserActivity.objects.filter(
+        #     last_activity__gte=active_threshold,
+        #     is_active=True
+        # ).count()
+        
+        # Count active users from last month (same period last month)
+        last_month_threshold = active_threshold - timedelta(days=30)
+        last_month_active_count = User.objects.filter(
+            last_login__gte=last_month_threshold,
+            last_login__lt=active_threshold
+        ).count()
+        
+        # Calculate percentage change
+        if last_month_active_count > 0:
+            percentage_change = ((current_active_count - last_month_active_count) / last_month_active_count) * 100
+        else:
+            percentage_change = 0
+        
+        data = {
+            'active_users': current_active_count,
+            'last_month_active_users': last_month_active_count,
+            'percentage_change': round(percentage_change, 1),
+            'trend': 'up' if percentage_change >= 0 else 'down',
+            'threshold_days': 30  # Indicates what "active" means
+        }
+        
+        return Response(data, status=status.HTTP_200_OK)
+    
+
+
+stripe.api_key = settings.STRIPE_SECRET_KEY
+
+class CreateStripeCheckoutSession(APIView):
+    def post(self, request):
+        serializer = PlanPaymentSerializer(data=request.data)
+        if serializer.is_valid():
+            plan_payment = serializer.save()  # this may link to SubscriptionPlan through FK like `plan_payment.plan`
+
+            subscription_plan = plan_payment.plan  # assuming a FK from PlanPayment to SubscriptionPlan
+
+            try:
+                checkout_session = stripe.checkout.Session.create(
+                    payment_method_types=['card'],
+                    line_items=[{
+                        'price_data': {
+                            'currency': 'inr',
+                            'unit_amount': int(subscription_plan.price * 100),  # convert to paise
+                            'product_data': {
+                                'name': subscription_plan.plan_name,
+                                'description': subscription_plan.description,
+                            },
+                        },
+                        'quantity': 1,
+                    }],
+                    mode='payment',
+                    metadata={
+                        'plan_payment_id': str(plan_payment.id),
+                        'plan_name': subscription_plan.plan_name,
+                    },
+                    success_url=settings.DOMAIN_URL + '/payment-success?session_id={CHECKOUT_SESSION_ID}',
+                    cancel_url=settings.DOMAIN_URL + '/payment-cancelled/',
+                )
+
+                plan_payment.stripe_checkout_id = checkout_session['id']
+                plan_payment.save()
+
+                return Response({'checkout_url': checkout_session.url}, status=200)
+
+            except Exception as e:
+                return Response({'error': str(e)}, status=400)
+
+        return Response(serializer.errors, status=400)
+
+
+@csrf_exempt
+def stripe_webhook(request):
+    payload = request.body
+    sig_header = request.META.get('HTTP_STRIPE_SIGNATURE')
+    endpoint_secret = settings.STRIPE_WEBHOOK_SECRET
+
+    try:
+        event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
+    except ValueError as e:
+        return HttpResponse(status=400)
+    except stripe.error.SignatureVerificationError as e:
+        return HttpResponse(status=400)
+
+    event_type = event['type']
+    data = event['data']['object']
+
+    print(f"⚡ Event received: {event_type}")
+    print(f"📋 Event data: {data}")
+
+    # Handle checkout.session.completed - This is the primary event for successful payments
+    if event_type == 'checkout.session.completed':
+        checkout_session_id = data.get('id')
+        plan_payment_id = data.get('metadata', {}).get('plan_payment_id')
+        payment_intent_id = data.get('payment_intent')
+        
+        print(f"✅ Checkout completed. Session ID: {checkout_session_id}")
+        print(f"📝 Plan Payment ID from metadata: {plan_payment_id}")
+        print(f"💳 Payment Intent ID: {payment_intent_id}")
+        
+        try:
+            # Try to find by plan_payment_id from metadata first
+            if plan_payment_id:
+                payment = PlanPayment.objects.get(id=plan_payment_id)
+                print(f"✅ Found payment by plan_payment_id: {plan_payment_id}")
+            else:
+                # Fallback: try to find by stripe_checkout_id
+                payment = PlanPayment.objects.get(stripe_checkout_id=checkout_session_id)
+                print(f"✅ Found payment by checkout_session_id: {checkout_session_id}")
+            
+            # Update payment status
+            payment.payment_status = 'PAID'
+            payment.stripe_checkout_id = checkout_session_id
+            payment.stripe_payment_intent = payment_intent_id
+            payment.save()
+            
+            print(f"✅ Payment {payment.id} marked as PAID")
+            
+        except PlanPayment.DoesNotExist:
+            print(f"❌ No matching PlanPayment found for session {checkout_session_id} or plan_payment_id {plan_payment_id}")
+        except Exception as e:
+            print(f"❌ Error updating payment: {str(e)}")
+
+    # Handle payment_intent.succeeded as backup
+    elif event_type == 'payment_intent.succeeded':
+        payment_intent_id = data.get('id')
+        print(f"💳 Payment intent succeeded: {payment_intent_id}")
+        
+        try:
+            # Find payment by stripe_payment_intent
+            payment = PlanPayment.objects.get(stripe_payment_intent=payment_intent_id)
+            payment.payment_status = 'PAID'
+            payment.save()
+            print(f"✅ Payment {payment.id} marked as PAID via payment_intent")
+            
+        except PlanPayment.DoesNotExist:
+            print(f"❌ No matching PlanPayment found for payment_intent: {payment_intent_id}")
+        except Exception as e:
+            print(f"❌ Error updating payment via payment_intent: {str(e)}")
+
+    # Handle failed/expired sessions
+    elif event_type in ['checkout.session.expired', 'checkout.session.async_payment_failed']:
+        checkout_session_id = data.get('id')
+        plan_payment_id = data.get('metadata', {}).get('plan_payment_id')
+        
+        print(f"❌ Checkout failed/expired. Session ID: {checkout_session_id}")
+        
+        try:
+            if plan_payment_id:
+                payment = PlanPayment.objects.get(id=plan_payment_id)
+            else:
+                payment = PlanPayment.objects.get(stripe_checkout_id=checkout_session_id)
+            
+            payment.payment_status = 'FAILED'
+            payment.save()
+            print(f"❌ Payment {payment.id} marked as FAILED")
+            
+        except PlanPayment.DoesNotExist:
+            print(f"❌ No matching PlanPayment found to mark as FAILED")
+        except Exception as e:
+            print(f"❌ Error marking payment as failed: {str(e)}")
+
+    else:
+        print(f"🔄 Unhandled event type: {event_type}")
+
+    return HttpResponse(status=200)
