@@ -1,7 +1,7 @@
 from rest_framework import viewsets, status
 from .models import SubscriptionPlan
 from rest_framework.response import Response
-from .serializers import PlanPaymentSerializer,SubscriptionPlanSerializer
+from .serializers import PlanPaymentSerializer,SubscriptionPlanSerializer,RecentlyOnboardedSerializer, RestaurantListSerializer
 from .permissions import IsSuperUserOrReadOnly
 from rest_framework.permissions import IsAuthenticated
 from datetime import datetime, timedelta
@@ -21,7 +21,7 @@ import stripe
 from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
-
+from django.db.models import Count, Sum, F
 
 
 User = get_user_model()
@@ -206,6 +206,71 @@ class ActiveUserStatisticsView(APIView):
         return Response(data, status=status.HTTP_200_OK)
     
 
+
+class RestaurantPlanStatsAPIView(APIView):
+    def get(self, request):
+        # Fetch all paid plan payments
+        payments = PlanPayment.objects.filter(payment_status='PAID')
+
+        # Aggregate data
+        plan_stats = (
+            payments
+            .values(plan_type=F('plan__plan_name'))
+            .annotate(
+                restaurants=Count('subadmin', distinct=True),
+                monthly_revenue=Sum('plan__price'),
+            )
+        )
+
+        # Example: mock growth values manually for now
+        growth_mapping = {
+            'Entry Level': 8.4,
+            'Standard': [12.7, -2.1],  # You may need to combine these
+            'Premium': 23.5
+        }
+
+        # Build response
+        response = []
+        for stat in plan_stats:
+            growth = growth_mapping.get(stat['plan_type'])
+            if isinstance(growth, list):
+                # split Standard into two (if needed)
+                for g in growth:
+                    response.append({
+                        "plan_type": stat['plan_type'],
+                        "restaurants": stat['restaurants'],
+                        "monthly_revenue": float(stat['monthly_revenue']),
+                        "growth": g
+                    })
+            else:
+                response.append({
+                    "plan_type": stat['plan_type'],
+                    "restaurants": stat['restaurants'],
+                    "monthly_revenue": float(stat['monthly_revenue']),
+                    "growth": growth
+                })
+
+        return Response(response)
+
+
+
+class RecentlyOnboardedAPIView(APIView):
+    def get(self, request):
+        # Last 4 onboarded restaurants (you can change the limit)
+        profiles = SubAdminProfile.objects.all().order_by('-id')[:4]
+        serializer = RecentlyOnboardedSerializer(profiles, many=True)
+        return Response(serializer.data)
+
+
+
+class RestaurantListAPIView(APIView):
+    def get(self, request):
+        queryset = SubAdminProfile.objects.all().order_by('restaurant_name')
+        serializer = RestaurantListSerializer(queryset, many=True)
+        return Response(serializer.data)
+
+
+#######---------------------Payment Integration with Stripe---------------------#######
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
