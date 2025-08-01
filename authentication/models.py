@@ -2,6 +2,7 @@
 
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
+from django.utils.timezone import now
 
 # Role Constants
 ROLE_ADMIN = 'admin'
@@ -62,6 +63,7 @@ class SubAdminProfile(models.Model):
     country = models.CharField(max_length=100)
     website_url = models.URLField(blank=True, null=True)
     restaurant_description = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
 
     def __str__(self):
         return str(self.user.email) 

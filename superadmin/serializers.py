@@ -41,28 +41,30 @@ class RecentlyOnboardedSerializer(serializers.ModelSerializer):
     
 
 
-class RestaurantListSerializer(serializers.ModelSerializer):
+class RestaurantTableSerializer(serializers.ModelSerializer):
+    restaurant_id = serializers.SerializerMethodField()
     owner_name = serializers.SerializerMethodField()
-    role = serializers.SerializerMethodField()
-    email = serializers.EmailField(source='email_address')
-    phone = serializers.CharField(source='phone_number')
+    owner_role = serializers.SerializerMethodField()
     plan_name = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
     calls_this_month = serializers.SerializerMethodField()
     growth_percent = serializers.SerializerMethodField()
-    restaurant_id = serializers.SerializerMethodField()
 
     class Meta:
         model = SubAdminProfile
         fields = [
-            'restaurant_id', 'restaurant_name', 'owner_name', 'role', 'email', 'phone',
-            'plan_name', 'status', 'calls_this_month', 'growth_percent', 'profile_image'
+            'restaurant_name', 'restaurant_id', 'owner_name', 'owner_role',
+            'email_address', 'phone_number', 'plan_name', 'status',
+            'calls_this_month', 'growth_percent', 'profile_image'
         ]
+
+    def get_restaurant_id(self, obj):
+        return f"RES-{obj.created_at.year}-{obj.id:03d}" if hasattr(obj, 'created_at') else f"RES-XXXX-{obj.id:03d}"
 
     def get_owner_name(self, obj):
         return f"{obj.user.first_name} {obj.user.last_name}"
 
-    def get_role(self, obj):
+    def get_owner_role(self, obj):
         return obj.user.role if hasattr(obj.user, 'role') else "Owner"
 
     def get_plan_name(self, obj):
@@ -96,9 +98,20 @@ class RestaurantListSerializer(serializers.ModelSerializer):
         ).count()
 
         if last_month_calls == 0:
-            return 100 if current_month_calls > 0 else 0
+            return 100 if current_month_calls > 0 else -100 if current_month_calls == 0 else 0
+
         growth = ((current_month_calls - last_month_calls) / last_month_calls) * 100
         return round(growth, 2)
+    
 
-    def get_restaurant_id(self, obj):
-        return f"RES-{obj.created_at.year}-{obj.id:03d}" if hasattr(obj, 'created_at') else f"RES-XXXX-{obj.id:03d}"
+
+class RestaurantStatsSerializer(serializers.Serializer):
+    total_restaurants = serializers.IntegerField()
+    new_this_period = serializers.IntegerField()
+    active_restaurants = serializers.IntegerField()
+    inactive_restaurants = serializers.IntegerField()
+    active_percent = serializers.FloatField()
+    inactive_percent = serializers.FloatField()
+    chart_data = serializers.ListField(
+        child=serializers.DictField(child=serializers.IntegerField())
+    )

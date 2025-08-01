@@ -1,7 +1,7 @@
 from rest_framework import viewsets, status
 from .models import SubscriptionPlan
 from rest_framework.response import Response
-from .serializers import PlanPaymentSerializer,SubscriptionPlanSerializer,RecentlyOnboardedSerializer, RestaurantListSerializer
+from .serializers import PlanPaymentSerializer,SubscriptionPlanSerializer,RecentlyOnboardedSerializer, RestaurantTableSerializer
 from .permissions import IsSuperUserOrReadOnly
 from rest_framework.permissions import IsAuthenticated
 from datetime import datetime, timedelta
@@ -22,7 +22,12 @@ from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.db.models import Count, Sum, F
-
+from rest_framework.pagination import PageNumberPagination
+from django.utils.timezone import now
+from django.db.models import Count
+from datetime import timedelta
+from collections import defaultdict
+from django.db.models.functions import TruncDate
 
 User = get_user_model()
 
@@ -263,11 +268,84 @@ class RecentlyOnboardedAPIView(APIView):
 
 
 
-class RestaurantListAPIView(APIView):
+class RestaurantTableAPIView(APIView):
     def get(self, request):
         queryset = SubAdminProfile.objects.all().order_by('restaurant_name')
-        serializer = RestaurantListSerializer(queryset, many=True)
-        return Response(serializer.data)
+        
+        paginator = PageNumberPagination()
+        paginator.page_size = request.GET.get('page_size', 10)  # optional dynamic size
+        page = paginator.paginate_queryset(queryset, request)
+        
+        serializer = RestaurantTableSerializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data)
+    
+
+class RestaurantStatsAPIView(APIView):
+    def get(self, request):
+        today = now().date()
+        range_type = request.GET.get('range', 'monthly')  # default: monthly
+
+        if range_type == 'weekly':
+            days = 7
+        elif range_type == 'yearly':
+            days = 365
+        else:  # monthly
+            days = 30
+
+        start_date = today - timedelta(days=days)
+
+        total = SubAdminProfile.objects.count()
+        
+        # Count SubAdminProfiles with recent user logins (temporary solution)
+        new_this_period = SubAdminProfile.objects.filter(
+            user__last_login__gte=start_date
+        ).count()
+
+        active_ids = UserActivity.objects.filter(is_active=True).values_list('user_id', flat=True)
+        inactive_ids = UserActivity.objects.filter(is_active=False).values_list('user_id', flat=True)
+
+        active = SubAdminProfile.objects.filter(user__id__in=active_ids).count()
+        inactive = SubAdminProfile.objects.filter(user__id__in=inactive_ids).count()
+
+        active_percent = round((active / total) * 100, 1) if total else 0
+        inactive_percent = round((inactive / total) * 100, 1) if total else 0
+
+        # Chart data
+        activities = UserActivity.objects.filter(
+            last_activity__date__gte=start_date
+        ).annotate(date=TruncDate('last_activity')).values('date', 'is_active').annotate(
+            count=Count('id')
+        )
+
+        chart_dict = defaultdict(lambda: {"active": 0, "inactive": 0})
+        for item in activities:
+            key = item["date"].strftime("%Y-%m-%d")
+            if item["is_active"]:
+                chart_dict[key]["active"] = item["count"]
+            else:
+                chart_dict[key]["inactive"] = item["count"]
+
+        chart_data = []
+        for i in range(days):
+            day = (today - timedelta(days=i)).strftime("%Y-%m-%d")
+            data = chart_dict.get(day, {"active": 0, "inactive": 0})
+            chart_data.append({
+                "date": day,
+                "active": data["active"],
+                "inactive": data["inactive"]
+            })
+
+        chart_data.reverse()
+
+        return Response({
+            "total_restaurants": total,
+            "new_this_period": new_this_period,
+            "active_restaurants": active,
+            "inactive_restaurants": inactive,
+            "active_percent": active_percent,
+            "inactive_percent": inactive_percent,
+            "chart_data": chart_data
+        })
 
 
 #######---------------------Payment Integration with Stripe---------------------#######
