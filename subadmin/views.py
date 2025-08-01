@@ -8,11 +8,15 @@ from .serializers import BusinessHourSerializer,MenuSerializer, SubAdminProfileS
 from rest_framework import permissions, status
 from authentication.models import SubAdminProfile
 from superadmin.permissions import IsSuperUserOrReadOnly
+from superadmin.models import CallRecord
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import api_view
 import requests
 from rest_framework import generics, permissions
 from django.shortcuts import get_object_or_404
+from django.utils.timezone import now
+from datetime import timedelta
+from django.db.models import Avg
 
 
 
@@ -382,3 +386,158 @@ class SMSFallbackPreviewView(generics.GenericAPIView):
             'preview': preview_message,
             'character_count': len(preview_message)
         })
+    
+
+
+
+####======================for Subadmin Dashboard========================####
+
+
+class TodaysCallsAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        try:
+            subadmin = SubAdminProfile.objects.get(user=user)
+        except SubAdminProfile.DoesNotExist:
+            return Response({'error': 'SubAdmin profile not found.'}, status=404)
+
+        today = now().date()
+        yesterday = today - timedelta(days=1)
+
+        # Today's and yesterday's call counts
+        todays_calls = CallRecord.objects.filter(
+            restaurant=subadmin,
+            created_at__date=today
+        ).count()
+
+        yesterdays_calls = CallRecord.objects.filter(
+            restaurant=subadmin,
+            created_at__date=yesterday
+        ).count()
+
+        if yesterdays_calls > 0:
+            percentage_change = ((todays_calls - yesterdays_calls) / yesterdays_calls) * 100
+        else:
+            percentage_change = 100 if todays_calls > 0 else 0
+
+        return Response({
+            "todays_calls": todays_calls,
+            "percentage_change": round(percentage_change, 2)
+        })
+    
+
+
+class MissedCallsAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        try:
+            subadmin = SubAdminProfile.objects.get(user=user)
+        except SubAdminProfile.DoesNotExist:
+            return Response({'error': 'SubAdmin profile not found.'}, status=404)
+
+        today = now().date()
+        yesterday = today - timedelta(days=1)
+
+        # Missed = status='failed'
+        todays_missed = CallRecord.objects.filter(
+            restaurant=subadmin,
+            created_at__date=today,
+            status='failed'
+        ).count()
+
+        yesterdays_missed = CallRecord.objects.filter(
+            restaurant=subadmin,
+            created_at__date=yesterday,
+            status='failed'
+        ).count()
+
+        if yesterdays_missed > 0:
+            percentage_change = ((todays_missed - yesterdays_missed) / yesterdays_missed) * 100
+        else:
+            percentage_change = 100 if todays_missed > 0 else 0
+
+        return Response({
+            "missed_calls": todays_missed,
+            "percentage_change": round(percentage_change, 2)
+        })
+    
+
+
+class AverageCallDurationAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        try:
+            subadmin = SubAdminProfile.objects.get(user=user)
+        except SubAdminProfile.DoesNotExist:
+            return Response({'error': 'SubAdmin profile not found.'}, status=404)
+
+        today = now().date()
+        yesterday = today - timedelta(days=1)
+
+        # Get average durations in seconds
+        today_avg = CallRecord.objects.filter(
+            restaurant=subadmin,
+            created_at__date=today,
+            duration__isnull=False
+        ).aggregate(avg_duration=Avg('duration'))['avg_duration'] or 0
+
+        yesterday_avg = CallRecord.objects.filter(
+            restaurant=subadmin,
+            created_at__date=yesterday,
+            duration__isnull=False
+        ).aggregate(avg_duration=Avg('duration'))['avg_duration'] or 0
+
+        # Percentage change
+        if yesterday_avg > 0:
+            percentage_change = ((today_avg - yesterday_avg) / yesterday_avg) * 100
+        else:
+            percentage_change = 0 if today_avg == 0 else 100
+
+        # Format duration as mm:ss
+        def format_duration(seconds):
+            minutes = int(seconds) // 60
+            sec = int(seconds) % 60
+            return f"{minutes}:{sec:02}"
+
+        return Response({
+            "average_duration": format_duration(today_avg),
+            "percentage_change": round(percentage_change, 2)
+        })
+    
+
+
+class RecentCallsAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        try:
+            subadmin = SubAdminProfile.objects.get(user=user)
+        except SubAdminProfile.DoesNotExist:
+            return Response({'error': 'SubAdmin profile not found.'}, status=404)
+
+        recent_calls = CallRecord.objects.filter(
+            restaurant=subadmin
+        ).order_by('-created_at')[:4]
+
+        data = []
+        for call in recent_calls:
+            data.append({
+                "call_sid": call.call_sid,
+                "status": call.status,
+                "duration": call.duration,
+                "caller_number": call.caller_number,  # <-- included here
+                "created_at": call.created_at.strftime("%Y-%m-%d %H:%M:%S")
+            })
+
+        return Response({"recent_calls": data})

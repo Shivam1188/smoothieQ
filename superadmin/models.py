@@ -51,6 +51,7 @@ class CallRecord(models.Model):
     call_sid = models.CharField(max_length=34, unique=True, null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='in-progress')
     duration = models.PositiveIntegerField(help_text="Duration in seconds", null=True, blank=True)
+    caller_number = models.CharField(max_length=20, null=True, blank=True)  
     created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
     
