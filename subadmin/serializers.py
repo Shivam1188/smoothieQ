@@ -60,7 +60,6 @@ class RestaurantLinkSerializer(serializers.ModelSerializer):
     
 
 
-
 class SMSFallbackSettingsSerializer(serializers.ModelSerializer):
     processed_message = serializers.SerializerMethodField()
     

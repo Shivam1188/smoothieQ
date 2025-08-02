@@ -60,7 +60,6 @@ class MakeCallView(APIView):
 
 
 
-
 @method_decorator(csrf_exempt, name='dispatch')
 class VoiceAssistantView(APIView):
     permission_classes = [AllowAny]
@@ -68,6 +67,7 @@ class VoiceAssistantView(APIView):
 
     def get(self, request, *args, **kwargs):
         """Handle both initial calls, speech input, and DTMF input via GET"""
+        print(request.GET, "==============here is get requestdata==============")
         call_sid = request.GET.get('CallSid')
         to_number = request.GET.get('To')
         speech_result = request.GET.get('SpeechResult', '').strip()

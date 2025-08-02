@@ -13,10 +13,23 @@ class SubscriptionPlanSerializer(serializers.ModelSerializer):
     
 
 class PlanPaymentSerializer(serializers.ModelSerializer):
+    plan = serializers.CharField(write_only=True)  # Accept plan name as input
+    plan_id = serializers.PrimaryKeyRelatedField(read_only=True, source='plan')  # Return plan ID in response if needed
+
     class Meta:
         model = PlanPayment
-        fields = '__all__'
+        fields = ['subadmin', 'plan', 'plan_id', 'payment_status', 'stripe_checkout_id', 'stripe_payment_intent']
         read_only_fields = ['payment_status', 'stripe_checkout_id', 'stripe_payment_intent']
+
+    def validate_plan(self, value):
+        try:
+            return SubscriptionPlan.objects.get(plan_name=value)
+        except SubscriptionPlan.DoesNotExist:
+            raise serializers.ValidationError("Invalid plan name.")
+
+    def create(self, validated_data):
+        plan_instance = validated_data.pop('plan')
+        return PlanPayment.objects.create(plan=plan_instance, **validated_data)
 
 
 
