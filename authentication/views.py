@@ -70,7 +70,7 @@ class LogoutAPIView(APIView):
             refresh_token = request.data["refresh"]
             token = RefreshToken(refresh_token)
             token.blacklist()
-            return success_response("Successfully logged out", status_code=status.HTTP_205_RESET_CONTENT)
+            return success_response("Successfully logged out", status_code=status.HTTP_200_OK)
         except KeyError:
             return error_response("Refresh token is required")
         except TokenError:
