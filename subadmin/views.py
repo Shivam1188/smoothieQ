@@ -2,9 +2,9 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from rest_framework import viewsets
-from .models import BusinessHour, Menu, RestaurantLink, SMSFallbackSettings
+from .models import BusinessHour, Menu, RestaurantLink, SMSFallbackSettings, MenuItem
 from django.core.mail import send_mail
-from .serializers import BusinessHourSerializer,MenuSerializer, SubAdminProfileSerializer, PhoneTriggerSerializer, RestaurantLinkSerializer, SMSFallbackSettingsSerializer
+from .serializers import BusinessHourSerializer,MenuSerializer, SubAdminProfileSerializer, PhoneTriggerSerializer, RestaurantLinkSerializer, SMSFallbackSettingsSerializer,MenuItemSerializer
 from rest_framework import permissions, status
 from authentication.models import SubAdminProfile
 from superadmin.permissions import IsSuperUserOrReadOnly
@@ -43,6 +43,12 @@ class BusinessHourViewSet(viewsets.ModelViewSet):
 class MenuViewSet(viewsets.ModelViewSet):
     queryset = Menu.objects.all()
     serializer_class = MenuSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+
+class MenuItemViewSet(viewsets.ModelViewSet):
+    queryset = MenuItem.objects.all()
+    serializer_class = MenuItemSerializer
     permission_classes = [permissions.IsAuthenticated]
 
 

@@ -1,11 +1,12 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import BusinessHourViewSet,MenuViewSet, AllRestaurantViewSet, get_menu_by_twilio_number, handle_incoming_call,sending_email,RestaurantLinkListCreateView,RestaurantLinkRetrieveUpdateDestroyView,   SMSFallbackSettingsRetrieveUpdateView, SMSFallbackPreviewView, TodaysCallsAPIView, MissedCallsAPIView, AverageCallDurationAPIView, RecentCallsAPIView
+from .views import BusinessHourViewSet,MenuViewSet, AllRestaurantViewSet, get_menu_by_twilio_number, handle_incoming_call,sending_email,RestaurantLinkListCreateView,RestaurantLinkRetrieveUpdateDestroyView,   SMSFallbackSettingsRetrieveUpdateView, SMSFallbackPreviewView, TodaysCallsAPIView, MissedCallsAPIView, AverageCallDurationAPIView, RecentCallsAPIView, MenuItemViewSet
 
 
 router = DefaultRouter()
 router.register(r'business-hours', BusinessHourViewSet, basename='business-hour')
 router.register(r'menu', MenuViewSet, basename='menu')
+router.register(r'menu-items', MenuItemViewSet, basename='menu-items')
 router.register(r'restaurants', AllRestaurantViewSet, basename='restaurant')
 
 

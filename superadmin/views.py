@@ -46,6 +46,7 @@ class SubscriptionPlanViewSet(viewsets.ModelViewSet):
 
 
 class RestaurantCountView(APIView):
+    permission_classes = [IsAuthenticated, IsSuperUserOrReadOnly]
     def get(self, request, format=None):
         current_count = SubAdminProfile.objects.count()
         
@@ -90,6 +91,7 @@ class RestaurantCountView(APIView):
 
 
 class CallStatisticsView(APIView):
+    permission_classes = [IsAuthenticated, IsSuperUserOrReadOnly]
     def get(self, request, format=None):
         today = timezone.now().date()
         first_day_current_month = today.replace(day=1)
@@ -127,6 +129,7 @@ class CallStatisticsView(APIView):
 from django.db.models import F, ExpressionWrapper, DurationField
 
 class CallDurationStatisticsView(APIView):
+    permission_classes = [IsAuthenticated, IsSuperUserOrReadOnly]
     def get(self, request, format=None):
         today = timezone.now().date()
         first_day_current_month = today.replace(day=1)
@@ -173,6 +176,7 @@ class CallDurationStatisticsView(APIView):
 
 
 class ActiveUserStatisticsView(APIView):
+    permission_classes = [IsAuthenticated, IsSuperUserOrReadOnly]
     def get(self, request, format=None):
         # Define what "active" means (e.g., logged in within last 30 days)
         active_threshold = timezone.now() - timedelta(days=30)
@@ -213,6 +217,7 @@ class ActiveUserStatisticsView(APIView):
 
 
 class RestaurantPlanStatsAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsSuperUserOrReadOnly]
     def get(self, request):
         # Fetch all paid plan payments
         payments = PlanPayment.objects.filter(payment_status='PAID')

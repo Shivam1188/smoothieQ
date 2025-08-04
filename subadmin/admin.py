@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import  BusinessHour, Menu, RestaurantLink, SMSFallbackSettings
+from .models import  BusinessHour, Menu, RestaurantLink, SMSFallbackSettings, UserSession, Order, OrderItem, MenuItem
 
 
 
@@ -38,3 +38,32 @@ class SMSFallbackSettingsAdmin(admin.ModelAdmin):
 
 
 admin.site.register(SMSFallbackSettings, SMSFallbackSettingsAdmin)
+
+
+class UserSessionAdmin(admin.ModelAdmin):
+    list_display = ('id','current_step', 'restaurant', 'created_at', 'updated_at')
+    search_fields = ('user__username', 'restaurant__restaurant_name')
+    list_filter = ('current_step', 'restaurant')
+admin.site.register(UserSession, UserSessionAdmin)
+
+class OrderAdmin(admin.ModelAdmin):
+    list_display = ('id', 'restaurant', 'status', 'created_at')
+    search_fields = ('user__username', 'restaurant__restaurant_name')
+    list_filter = ('status', 'restaurant')
+admin.site.register(Order, OrderAdmin)
+
+
+class OrderItemAdmin(admin.ModelAdmin):
+    list_display = ('id', 'order', 'menu_item', 'quantity')
+    search_fields = ('order__id', 'menu_item__name')
+    list_filter = ('order__restaurant',)    
+admin.site.register(OrderItem, OrderItemAdmin)
+
+
+
+class MenuItemAdmin(admin.ModelAdmin):
+    list_display = ('id', 'menu', 'name', 'price', 'is_available')
+    search_fields = ('name', 'menu__name')
+    list_filter = ('menu__subadmin_profile', 'is_available')   
+
+admin.site.register(MenuItem, MenuItemAdmin)

@@ -60,6 +60,7 @@ class LoginAPIView(APIView):
             })
         return error_response("Invalid login credentials", serializer.errors)
      
+     
 # ---------Logout API ----------------#
 class LogoutAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
