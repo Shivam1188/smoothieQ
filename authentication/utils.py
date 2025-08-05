@@ -21,8 +21,21 @@ def success_response(message=None, data=None, status_code=status.HTTP_200_OK):
     }, status=status_code)
 
 def error_response(message="An error occurred", errors=None, status_code=status.HTTP_400_BAD_REQUEST):
+    # Flatten serializer errors into a single-line string
+    if isinstance(errors, dict):
+        error_list = []
+        for field, messages in errors.items():
+            if isinstance(messages, list):
+                for msg in messages:
+                    error_list.append(f"{msg}")
+            else:
+                error_list.append(f"{messages}")
+        error_string = " | ".join(error_list)
+    else:
+        error_string = str(errors)
+
     return Response({
         "success": False,
         "message": message,
-        "errors": errors
+        "error": error_string
     }, status=status_code)
