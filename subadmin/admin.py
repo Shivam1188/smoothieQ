@@ -22,11 +22,8 @@ class MenuAdmin(admin.ModelAdmin):
 
 
 class RestaurantLinkAdmin(admin.ModelAdmin):
-    list_display = ('id', 'link_type', 'provider', 'url', 'is_verified', 'last_verified', 'created_at')
-    list_filter = ('link_type', 'provider', 'is_verified')
-    search_fields = ('url', 'provider')
-    readonly_fields = ('is_verified', 'last_verified', 'created_at')
-
+    list_display = ('id', 'restaurant_name', 'direct_ordering_link')
+    search_fields = ('restaurant_name__restaurant_name',)
 admin.site.register(RestaurantLink, RestaurantLinkAdmin)
 
 

@@ -128,3 +128,14 @@ class RestaurantStatsSerializer(serializers.Serializer):
     chart_data = serializers.ListField(
         child=serializers.DictField(child=serializers.IntegerField())
     )
+
+
+
+class EarningSerializer(serializers.Serializer):
+    period = serializers.CharField()
+    revenue = serializers.DecimalField(max_digits=10, decimal_places=2)
+    expense = serializers.DecimalField(max_digits=10, decimal_places=2)
+
+class PlanDistributionSerializer(serializers.Serializer):
+    plan_name = serializers.CharField()
+    count = serializers.IntegerField()

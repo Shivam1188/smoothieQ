@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import SubscriptionPlanViewSet, RestaurantCountView, CallStatisticsView, CallDurationStatisticsView, ActiveUserStatisticsView, CreateStripeCheckoutSession, stripe_webhook, RestaurantPlanStatsAPIView, RecentlyOnboardedAPIView, RestaurantTableAPIView,RestaurantStatsAPIView
+from .views import SubscriptionPlanViewSet, RestaurantCountView, CallStatisticsView, CallDurationStatisticsView, ActiveUserStatisticsView, CreateStripeCheckoutSession, stripe_webhook, RestaurantPlanStatsAPIView, RecentlyOnboardedAPIView, RestaurantTableAPIView,RestaurantStatsAPIView, EarningsView, PlanDistributionView
 
 router = DefaultRouter()
 router.register(r'admin-plans', SubscriptionPlanViewSet, basename='adminplan')
@@ -18,5 +18,7 @@ urlpatterns = [
     path('restaurant/stats/', RestaurantStatsAPIView.as_view(), name='restaurant-stats'),
     path('create-stripe-session/', CreateStripeCheckoutSession.as_view()),
     path('stripe-webhook/', stripe_webhook),
+    path('earnings/<str:period_type>/', EarningsView.as_view(), name='earnings'),
+    path('plan-distribution/', PlanDistributionView.as_view(), name='plan-distribution'),
 
 ]

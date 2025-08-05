@@ -325,76 +325,17 @@ def sending_email(request):
 
 
 
-
-
-
-class RestaurantLinkListCreateView(generics.ListCreateAPIView):
+class RestaurantLinkViewSet(viewsets.ModelViewSet):
+    queryset = RestaurantLink.objects.all()
     serializer_class = RestaurantLinkSerializer
     permission_classes = [permissions.IsAuthenticated]
-
-    def get_queryset(self):
-        # Only return links for the authenticated user's restaurant
-        return RestaurantLink.objects.filter(
-            restaurant=self.request.user.subadmin_profile
-        ).order_by('link_type', 'provider')
-
-    def perform_create(self, serializer):
-        # Automatically associate with the user's restaurant
-        serializer.save(restaurant=self.request.user.subadmin_profile)
-
-class RestaurantLinkRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
-    serializer_class = RestaurantLinkSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get_queryset(self):
-        # Only allow operations on the authenticated user's restaurant links
-        return RestaurantLink.objects.filter(
-            restaurant=self.request.user.subadmin_profile
-        )
-
-    def get_object(self):
-        queryset = self.get_queryset()
-        obj = get_object_or_404(queryset, pk=self.kwargs['pk'])
-        return obj
-    
-
-class SMSFallbackSettingsRetrieveUpdateView(generics.RetrieveUpdateAPIView):
-    serializer_class = SMSFallbackSettingsSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get_object(self):
-        # Get or create settings for the user's restaurant
-        restaurant = self.request.user.subadmin_profile
-        obj, created = SMSFallbackSettings.objects.get_or_create(
-            restaurant=restaurant,
-            defaults={
-                'message': SMSFallbackSettings._meta.get_field('message').default
-            }
-        )
-        return obj
-
-class SMSFallbackPreviewView(generics.GenericAPIView):
-    permission_classes = [permissions.IsAuthenticated]
-    serializer_class = SMSFallbackSettingsSerializer
-
-    def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        
-        restaurant = request.user.subadmin_profile
-        preview_message = serializer.validated_data['message'].format(
-            restaurant_name=restaurant.restaurant_name,
-            phone_number=restaurant.phone_number,
-            website_url=restaurant.website_url or "our website"
-        )
-        
-        return Response({
-            'preview': preview_message,
-            'character_count': len(preview_message)
-        })
     
 
 
+class SMSFallbackSettingsViewSet(viewsets.ModelViewSet):
+    queryset = SMSFallbackSettings.objects.all()
+    serializer_class = SMSFallbackSettingsSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
 ####======================for Subadmin Dashboard========================####
 

@@ -14,8 +14,8 @@ class BusinessHourSerializer(serializers.ModelSerializer):
             'opening_time',
             'closing_time',
             'closed_all_day',
-            'menu',         # accept menu id in POST/PUT
-            'menu_name',    # show menu name in GET
+            'menu',        
+            'menu_name',    
         ]
   
 
@@ -52,41 +52,33 @@ class PhoneTriggerSerializer(serializers.Serializer):
 
 
 class RestaurantLinkSerializer(serializers.ModelSerializer):
+    restaurant_name_display = serializers.CharField(source='restaurant_name.restaurant_name', read_only=True)
+
     class Meta:
         model = RestaurantLink
-        fields = ['id', 'link_type', 'provider', 'url', 'is_verified', 'last_verified', 'created_at']
-        read_only_fields = ['is_verified', 'last_verified', 'created_at']
-
-    def validate(self, data):
-        # Ensure the restaurant exists and belongs to the requesting user
-        request = self.context.get('request')
-        if request and hasattr(request.user, 'subadmin_profile'):
-            data['restaurant'] = request.user.subadmin_profile
-        else:
-            raise serializers.ValidationError("User is not associated with a restaurant")
-        return data
+        fields = '__all__'
     
 
 
 class SMSFallbackSettingsSerializer(serializers.ModelSerializer):
+    restaurant_name = serializers.CharField(source='restaurant.restaurant_name', read_only=True)
+    phone_number = serializers.CharField(source='restaurant.phone_number', read_only=True)
+    website_url = serializers.CharField(source='restaurant.website_url', read_only=True)
     processed_message = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = SMSFallbackSettings
-        fields = ['id', 'message', 'processed_message', 'is_active', 'last_updated']
-        read_only_fields = ['id', 'processed_message', 'last_updated']
+        fields = [
+            'id',
+            'restaurant',
+            'restaurant_name',
+            'phone_number',
+            'website_url',
+            'message',
+            'processed_message',
+            'is_active',
+            'last_updated',
+        ]
 
     def get_processed_message(self, obj):
         return obj.get_processed_message()
-
-    def validate(self, data):
-        # Ensure required variables are present
-        required_vars = ['{restaurant_name}', '{phone_number}']
-        message = data.get('message', self.instance.message if self.instance else '')
-        
-        for var in required_vars:
-            if var not in message:
-                raise serializers.ValidationError(
-                    f"Message must include {var} variable"
-                )
-        return data

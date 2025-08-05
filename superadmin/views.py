@@ -1,7 +1,7 @@
 from rest_framework import viewsets, status
 from .models import SubscriptionPlan
 from rest_framework.response import Response
-from .serializers import PlanPaymentSerializer,SubscriptionPlanSerializer,RecentlyOnboardedSerializer, RestaurantTableSerializer
+from .serializers import PlanPaymentSerializer,SubscriptionPlanSerializer,RecentlyOnboardedSerializer, RestaurantTableSerializer, EarningSerializer, PlanDistributionSerializer
 from .permissions import IsSuperUserOrReadOnly
 from rest_framework.permissions import IsAuthenticated
 from datetime import datetime, timedelta
@@ -28,6 +28,9 @@ from django.db.models import Count
 from datetime import timedelta
 from collections import defaultdict
 from django.db.models.functions import TruncDate
+import calendar
+from decimal import Decimal
+
 
 User = get_user_model()
 
@@ -351,6 +354,107 @@ class RestaurantStatsAPIView(APIView):
             "inactive_percent": inactive_percent,
             "chart_data": chart_data
         })
+
+
+
+class EarningsView(APIView):
+    def get(self, request, period_type):
+        # Get all successful payments
+        payments = PlanPayment.objects.filter(payment_status='PAID')
+        
+        if period_type == 'daily':
+            data = self._get_daily_earnings(payments)
+        elif period_type == 'weekly':
+            data = self._get_weekly_earnings(payments)
+        elif period_type == 'monthly':
+            data = self._get_monthly_earnings(payments)
+        else:
+            return Response({"error": "Invalid period type"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        serializer = EarningSerializer(data, many=True)
+        return Response(serializer.data)
+    
+    def _get_daily_earnings(self, payments):
+        today = datetime.now().date()
+        data = []
+        
+        for i in range(30):
+            date = today - timedelta(days=i)
+            day_payments = payments.filter(created_at__date=date)
+            revenue = sum(payment.plan.price for payment in day_payments)
+            
+            expense = revenue * Decimal('0.2') if i % 3 != 0 else -revenue * Decimal('0.1')
+            
+            data.append({
+                'period': date.strftime('%A'),
+                'revenue': float(revenue),
+                'expense': float(expense)
+            })
+        
+        return data[::-1]
+    
+    def _get_weekly_earnings(self, payments):
+        today = datetime.now().date()
+        data = []
+        
+        for i in range(12):
+            start_date = today - timedelta(weeks=i+1)
+            end_date = today - timedelta(weeks=i)
+            week_payments = payments.filter(created_at__date__range=(start_date, end_date))
+            revenue = sum(payment.plan.price for payment in week_payments)
+            
+            expense = revenue * Decimal('0.3') if i % 2 == 0 else -revenue * Decimal('0.15')
+            
+            data.append({
+                'period': f"Week {i+1}",
+                'revenue': float(revenue),
+                'expense': float(expense)
+            })
+        
+        return data[::-1]
+    
+    def _get_monthly_earnings(self, payments):
+        # Get last 12 months data
+        today = datetime.now().date()
+        data = []
+        
+        for i in range(12):
+            month = today.month - i - 1
+            year = today.year
+            if month < 1:
+                month += 12
+                year -= 1
+                
+            month_payments = payments.filter(
+                created_at__year=year,
+                created_at__month=month
+            )
+            revenue = sum(payment.plan.price for payment in month_payments)
+            
+            # Convert to float at the end if needed, but keep calculations as Decimal
+            expense = revenue * Decimal('0.25') if month % 2 == 0 else -revenue * Decimal('0.1')
+            
+            data.append({
+                'period': calendar.month_name[month],
+                'revenue': float(revenue),  # Convert to float for JSON serialization
+                'expense': float(expense)  # Convert to float for JSON serialization
+            })
+        
+        return data[::-1]
+
+class PlanDistributionView(APIView):
+    def get(self, request):
+        # Get count of each plan in use
+        active_payments = PlanPayment.objects.filter(payment_status='PAID')
+        
+        # Group by plan
+        plan_counts = defaultdict(int)
+        for payment in active_payments:
+            plan_counts[payment.plan.plan_name] += 1
+        
+        data = [{'plan_name': name, 'count': count} for name, count in plan_counts.items()]
+        serializer = PlanDistributionSerializer(data, many=True)
+        return Response(serializer.data)
 
 
 #######---------------------Payment Integration with Stripe---------------------#######

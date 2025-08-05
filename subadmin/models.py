@@ -59,37 +59,20 @@ class BusinessHour(models.Model):
 
 
 class RestaurantLink(models.Model):
-    LINK_TYPE_CHOICES = [
-        ('ordering', 'Online Ordering'),
-        ('reservation', 'Reservation System'),
-        ('catering', 'Catering Form'),
-    ]
-    
-    PROVIDER_CHOICES = [
-        ('direct', 'Direct Link'),
-        ('doordash', 'DoorDash'),
-        ('ubereats', 'UberEats'),
-        ('grubhub', 'GrubHub'),
-        ('opentable', 'OpenTable'),
-        ('resy', 'Resy'),
-        ('other', 'Other'),
-    ]
-    
-    restaurant = models.ForeignKey(SubAdminProfile, on_delete=models.CASCADE, related_name='links')
-    link_type = models.CharField(max_length=20, choices=LINK_TYPE_CHOICES)
-    provider = models.CharField(max_length=20, choices=PROVIDER_CHOICES)
-    url = models.URLField(max_length=500)
-    is_verified = models.BooleanField(default=False)
-    last_verified = models.DateTimeField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        unique_together = ('restaurant', 'link_type', 'provider')
-        ordering = ['link_type', 'provider']
+    restaurant_name = models.ForeignKey(SubAdminProfile, on_delete=models.CASCADE, related_name="restaurant_links", null=True, blank=True)
+    direct_ordering_link = models.URLField(blank=True, null=True)
+    doordash_link = models.URLField(blank=True, null=True)
+    ubereats_link = models.URLField(blank=True, null=True)
+    grubhub_link = models.URLField(blank=True, null=True)
+    direct_reservation_link = models.URLField(blank=True, null=True)
+    opentable_link = models.URLField(blank=True, null=True)
+    resy_link = models.URLField(blank=True, null=True)
+    catering_request_form = models.URLField(blank=True, null=True)
+    special_events_form = models.URLField(blank=True, null=True)
 
     def __str__(self):
-        return f"{self.get_link_type_display()} - {self.get_provider_display()}"
+        return str(self.restaurant_name.restaurant_name) if self.restaurant_name else f"Restaurant Link #{self.id}"
+
     
 
 
