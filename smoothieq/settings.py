@@ -63,7 +63,7 @@ CHANNEL_LAYERS = {
 }
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
+    "https://36ba5cade7d0.ngrok-free.app",
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True
@@ -195,7 +195,7 @@ OPENAI_API_KEY='sk-proj-L-UF3Y54FseI5BG5jRTSTZYqQPGl3ZZ_4QmsCVu6GunO8ROfTbwiZzud
 
 
 
-FRONTEND_URL = "http://localhost:5173"
+FRONTEND_URL = "https://36ba5cade7d0.ngrok-free.app/"
 
 
 

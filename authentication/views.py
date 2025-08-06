@@ -111,7 +111,7 @@ class ForgotPasswordAPIView(APIView):
         uid = urlsafe_base64_encode(force_bytes(user.pk))
         token = account_activation_token.make_token(user)
 
-        reset_url = f"{settings.FRONTEND_URL}/reset-password/{uid}/{token}/"
+        reset_url = f"{settings.FRONTEND_URL}auth/reset-password/{uid}/{token}/"
 
         context = {
             'user': user,
