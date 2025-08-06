@@ -26,3 +26,7 @@ urlpatterns = [
     path('api/subadmin/', include('subadmin.urls')),
     path('api/twilio_bot/', include('twilio_bot.urls'))
 ]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+
+if settings.DEBUG:
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

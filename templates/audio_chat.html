@@ -1,0 +1,29 @@
+<!-- templates/chat/audio_chat.html -->
+{% extends "base.html" %}
+
+{% block content %}
+<div class="audio-chat-container">
+    <h1>Audio Chat</h1>
+    <div class="connection-status">
+        WebSocket: <span id="connection-status">Disconnected</span>
+    </div>
+
+    <div class="message-history" id="message-history">
+        <!-- Messages will be inserted here by JavaScript -->
+    </div>
+
+    <div class="input-controls">
+        <form id="text-form">
+            <input type="text" id="text-input" placeholder="Type your message...">
+            <button type="submit">Send</button>
+        </form>
+
+        <button id="record-button">Start Recording</button>
+        <audio id="audio-player" controls style="display: none;"></audio>
+    </div>
+</div>
+
+<script>
+    const sessionId = "{{ session_id }}";
+</script>
+{% endblock %}

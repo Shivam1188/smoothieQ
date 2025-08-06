@@ -128,3 +128,42 @@ def is_plan_active(subadmin):
     except Exception as e:
         logger.error(f"Error checking plan status for {subadmin}: {e}")
         return False
+
+
+
+
+
+import speech_recognition as sr
+import openai
+from gtts import gTTS
+import io
+import tempfile
+import os
+
+def transcribe_audio(audio_data):
+    recognizer = sr.Recognizer()
+    with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp_file:
+        tmp_file.write(audio_data)
+        tmp_file_path = tmp_file.name
+    
+    try:
+        with sr.AudioFile(tmp_file_path) as source:
+            audio_data = recognizer.record(source)
+            text = recognizer.recognize_google(audio_data)
+        return text
+    finally:
+        os.unlink(tmp_file_path)
+
+def generate_llm_response(conversation_history):
+    return openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=conversation_history,
+        stream=True
+    )
+
+def text_to_speech(text):
+    tts = gTTS(text=text, lang='en')
+    audio_buffer = io.BytesIO()
+    tts.write_to_fp(audio_buffer)
+    audio_buffer.seek(0)
+    return audio_buffer

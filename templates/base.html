@@ -1,0 +1,17 @@
+<!-- templates/base.html -->
+{% load static %}
+
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Audio Chat</title>
+    <link rel="stylesheet" href="{% static 'audio_chat.css' %}">
+</head>
+
+<body>
+    {% block content %}{% endblock %}
+    <script src="{% static 'audio_chat.js' %}"></script>
+</body>
+
+</html>

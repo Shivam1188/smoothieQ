@@ -679,3 +679,27 @@ def get_menu_by_twilio_number(request):
         "address": subadmin.address,
         "website": subadmin.website_url
     })
+
+
+
+
+from django.shortcuts import render
+from rest_framework import generics
+from .models import Conversation, Message
+from .serializers import ConversationSerializer, MessageSerializer
+
+def chat_view(request, session_id=None):
+    return render(request, 'audio_chat.html', {
+        'session_id': session_id or request.session.session_key
+    })
+
+class ConversationListCreateView(generics.ListCreateAPIView):
+    queryset = Conversation.objects.all()
+    serializer_class = ConversationSerializer
+
+class MessageListView(generics.ListAPIView):
+    serializer_class = MessageSerializer
+    
+    def get_queryset(self):
+        session_id = self.kwargs['session_id']
+        return Message.objects.filter(conversation__session_id=session_id)

@@ -1,0 +1,76 @@
+/* static/css/audio_chat.css */
+.audio-chat-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+    font-family: Arial, sans-serif;
+}
+
+.connection-status {
+    padding: 10px;
+    background: #f0f0f0;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.message-history {
+    height: 400px;
+    overflow-y: auto;
+    margin-bottom: 20px;
+    border: 1px solid #ddd;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+.user-message {
+    background: #e3f2fd;
+    padding: 10px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+}
+
+.assistant-message {
+    background: #f5f5f5;
+    padding: 10px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+}
+
+.input-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+#text-form {
+    display: flex;
+    gap: 10px;
+}
+
+#text-input {
+    flex-grow: 1;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+button {
+    padding: 8px 15px;
+    background: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #45a049;
+}
+
+#record-button {
+    background: #f44336;
+}
+
+#record-button:hover {
+    background: #d32f2f;
+}
