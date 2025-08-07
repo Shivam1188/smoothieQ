@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import SubscriptionPlanViewSet, RestaurantCountView, CallStatisticsView, CallDurationStatisticsView, ActiveUserStatisticsView, CreateStripeCheckoutSession, stripe_webhook, RestaurantPlanStatsAPIView, RecentlyOnboardedAPIView, RestaurantTableAPIView,RestaurantStatsAPIView, EarningsView, PlanDistributionView
+from .views import SubscriptionPlanViewSet, RestaurantCountView, CallStatisticsView, CallDurationStatisticsView, ActiveUserStatisticsView, CreateStripeCheckoutSession, stripe_webhook, RestaurantPlanStatsAPIView, RecentlyOnboardedAPIView, RestaurantTableAPIView,RestaurantStatisticsView, EarningsView, PlanDistributionView, PlanStatsAPIView, SubAdminCallRecordFilterView
 
 router = DefaultRouter()
 router.register(r'admin-plans', SubscriptionPlanViewSet, basename='adminplan')
@@ -15,10 +15,11 @@ urlpatterns = [
     path('restaurant-plan-stats/', RestaurantPlanStatsAPIView.as_view(), name='restaurant-plan-stats'),
     path('recently-onboarded/', RecentlyOnboardedAPIView.as_view(), name='recently-onboarded'),
     path('restaurant-table/', RestaurantTableAPIView.as_view(), name='restaurant-table'),
-    path('restaurant/stats/', RestaurantStatsAPIView.as_view(), name='restaurant-stats'),
+    path('restaurant-statistics/', RestaurantStatisticsView.as_view(), name='restaurant-statistics'),
     path('create-stripe-session/', CreateStripeCheckoutSession.as_view()),
     path('stripe-webhook/', stripe_webhook),
     path('earnings/<str:period_type>/', EarningsView.as_view(), name='earnings'),
     path('plan-distribution/', PlanDistributionView.as_view(), name='plan-distribution'),
-
+    path('plan-stats/', PlanStatsAPIView.as_view(), name='plan-stats'),
+    path('<int:subadmin_id>/call-records/', SubAdminCallRecordFilterView.as_view(), name='subadmin-call-records'),
 ]

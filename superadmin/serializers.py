@@ -118,17 +118,13 @@ class RestaurantTableSerializer(serializers.ModelSerializer):
     
 
 
-class RestaurantStatsSerializer(serializers.Serializer):
+class RestaurantStatisticsSerializer(serializers.Serializer):
     total_restaurants = serializers.IntegerField()
-    new_this_period = serializers.IntegerField()
     active_restaurants = serializers.IntegerField()
     inactive_restaurants = serializers.IntegerField()
-    active_percent = serializers.FloatField()
-    inactive_percent = serializers.FloatField()
-    chart_data = serializers.ListField(
-        child=serializers.DictField(child=serializers.IntegerField())
-    )
-
+    active_percentage = serializers.FloatField()
+    inactive_percentage = serializers.FloatField()
+    change_this_month = serializers.IntegerField()
 
 
 class EarningSerializer(serializers.Serializer):
@@ -139,3 +135,11 @@ class EarningSerializer(serializers.Serializer):
 class PlanDistributionSerializer(serializers.Serializer):
     plan_name = serializers.CharField()
     count = serializers.IntegerField()
+
+
+
+class CallRecordSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CallRecord
+        fields = '__all__'
+        read_only_fields = ('created_at', 'updated_at')

@@ -6,6 +6,7 @@ from .serializers import (
     RegisterSerializer, LoginSerializer,
     SubAdminProfileSerializer, UserProfileSerializer
 )
+from urllib.parse import urlencode
 from rest_framework_simplejwt.tokens import RefreshToken,TokenError
 from django.core.mail import send_mail
 from django.conf import settings
@@ -96,7 +97,6 @@ class CustomTokenRefreshAPIView(APIView):
 
 
 class ForgotPasswordAPIView(APIView):
-    # permission_classes = [permissions.AllowAny]
 
     def post(self, request):
         email = request.data.get("email")
@@ -111,7 +111,15 @@ class ForgotPasswordAPIView(APIView):
         uid = urlsafe_base64_encode(force_bytes(user.pk))
         token = account_activation_token.make_token(user)
 
-        reset_url = f"{settings.FRONTEND_URL}auth/reset-password/{uid}/{token}/"
+        # Prepare query string
+        query_params = urlencode({
+            "uid": uid,
+            "token": token,
+            "email": email
+        })
+
+        # Send URL with query string only (no path params)
+        reset_url = f"{settings.FRONTEND_URL}auth/reset-password?{query_params}"
 
         context = {
             'user': user,

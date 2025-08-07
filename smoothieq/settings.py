@@ -63,7 +63,7 @@ CHANNEL_LAYERS = {
 }
 
 CORS_ALLOWED_ORIGINS = [
-    "https://36ba5cade7d0.ngrok-free.app",
+    "http://localhost:5173",
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True
@@ -176,7 +176,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 SUPPORT_EMAIL="SmoothieQ@yopmail.com"
 COMPANY_NAME="SmoothieQ"
-FRONTEND_URL = "https://yourfrontend.com"
+FRONTEND_URL = "http://localhost:5173"
 DEFAULT_FROM_EMAIL = "testampli2023@gmail.com"
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com' 
@@ -186,16 +186,16 @@ EMAIL_HOST_USER = 'testampli2023@gmail.com'
 EMAIL_HOST_PASSWORD = 'iopr mlgp lrnz umgf'
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
-TWILIO_ACCOUNT_SID = 'ACb779f9a2de32b2dc771eb17cb46fefb6'
-TWILIO_AUTH_TOKEN = 'e0701381ababd6532eee7c243d76f1d2'
-TWILIO_PHONE_NUMBER = '+12765959018'  
+TWILIO_ACCOUNT_SID =os.getenv("TWILIO_ACCOUNT_SID")
+TWILIO_AUTH_TOKEN = '490ea31cb8abccf60a0775881c4e4847'
+TWILIO_PHONE_NUMBER = '+16575347844'  
 
 
 OPENAI_API_KEY='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'
 
 
 
-FRONTEND_URL = "https://36ba5cade7d0.ngrok-free.app/"
+FRONTEND_URL = "http://localhost:5173"
 
 
 

@@ -1,7 +1,7 @@
 from rest_framework import viewsets, status
 from .models import SubscriptionPlan
 from rest_framework.response import Response
-from .serializers import PlanPaymentSerializer,SubscriptionPlanSerializer,RecentlyOnboardedSerializer, RestaurantTableSerializer, EarningSerializer, PlanDistributionSerializer
+from .serializers import PlanPaymentSerializer,SubscriptionPlanSerializer,RecentlyOnboardedSerializer, RestaurantTableSerializer, EarningSerializer, PlanDistributionSerializer,RestaurantStatisticsSerializer
 from .permissions import IsSuperUserOrReadOnly
 from rest_framework.permissions import IsAuthenticated
 from datetime import datetime, timedelta
@@ -30,6 +30,12 @@ from collections import defaultdict
 from django.db.models.functions import TruncDate
 import calendar
 from decimal import Decimal
+from dateutil.relativedelta import relativedelta
+from rest_framework.exceptions import PermissionDenied
+from rest_framework import generics, filters
+from .serializers import CallRecordSerializer
+from django_filters.rest_framework import DjangoFilterBackend
+
 
 
 User = get_user_model()
@@ -288,73 +294,74 @@ class RestaurantTableAPIView(APIView):
         return paginator.get_paginated_response(serializer.data)
     
 
-class RestaurantStatsAPIView(APIView):
-    def get(self, request):
-        today = now().date()
-        range_type = request.GET.get('range', 'monthly')  # default: monthly
 
-        if range_type == 'weekly':
-            days = 7
-        elif range_type == 'yearly':
-            days = 365
-        else:  # monthly
-            days = 30
 
-        start_date = today - timedelta(days=days)
-
-        total = SubAdminProfile.objects.count()
+class RestaurantStatisticsView(APIView):
+    def get(self, request, format=None):
+        # Get query parameters
+        period = request.query_params.get('period', 'all')  # 'all', 'weekly', 'monthly', 'yearly'
         
-        # Count SubAdminProfiles with recent user logins (temporary solution)
-        new_this_period = SubAdminProfile.objects.filter(
-            user__last_login__gte=start_date
+        # Calculate time periods
+        now = datetime.now()
+        
+        # Get base statistics
+        total_restaurants = SubAdminProfile.objects.count()
+        active_restaurants = SubAdminProfile.objects.filter(user__is_active=True).count()
+        inactive_restaurants = total_restaurants - active_restaurants
+        
+        # Calculate percentages
+        active_percentage = (active_restaurants / total_restaurants * 100) if total_restaurants else 0
+        inactive_percentage = (inactive_restaurants / total_restaurants * 100) if total_restaurants else 0
+        
+        # Calculate change this month (new restaurants created this month)
+        this_month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        change_this_month = SubAdminProfile.objects.filter(
+            created_at__gte=this_month_start
         ).count()
-
-        active_ids = UserActivity.objects.filter(is_active=True).values_list('user_id', flat=True)
-        inactive_ids = UserActivity.objects.filter(is_active=False).values_list('user_id', flat=True)
-
-        active = SubAdminProfile.objects.filter(user__id__in=active_ids).count()
-        inactive = SubAdminProfile.objects.filter(user__id__in=inactive_ids).count()
-
-        active_percent = round((active / total) * 100, 1) if total else 0
-        inactive_percent = round((inactive / total) * 100, 1) if total else 0
-
-        # Chart data
-        activities = UserActivity.objects.filter(
-            last_activity__date__gte=start_date
-        ).annotate(date=TruncDate('last_activity')).values('date', 'is_active').annotate(
-            count=Count('id')
-        )
-
-        chart_dict = defaultdict(lambda: {"active": 0, "inactive": 0})
-        for item in activities:
-            key = item["date"].strftime("%Y-%m-%d")
-            if item["is_active"]:
-                chart_dict[key]["active"] = item["count"]
-            else:
-                chart_dict[key]["inactive"] = item["count"]
-
-        chart_data = []
-        for i in range(days):
-            day = (today - timedelta(days=i)).strftime("%Y-%m-%d")
-            data = chart_dict.get(day, {"active": 0, "inactive": 0})
-            chart_data.append({
-                "date": day,
-                "active": data["active"],
-                "inactive": data["inactive"]
-            })
-
-        chart_data.reverse()
-
-        return Response({
-            "total_restaurants": total,
-            "new_this_period": new_this_period,
-            "active_restaurants": active,
-            "inactive_restaurants": inactive,
-            "active_percent": active_percent,
-            "inactive_percent": inactive_percent,
-            "chart_data": chart_data
-        })
-
+        
+        # Prepare base stats
+        base_stats = {
+            'total_restaurants': total_restaurants,
+            'active_restaurants': active_restaurants,
+            'inactive_restaurants': inactive_restaurants,
+            'active_percentage': round(active_percentage, 1),
+            'inactive_percentage': round(inactive_percentage, 1),
+            'change_this_month': change_this_month,
+        }
+        
+        # Initialize response data
+        data = {}
+        
+        if period == 'all' or period == 'weekly':
+            weekly_start = now - timedelta(days=7)
+            data['weekly'] = {
+                **base_stats,
+                'period_start': weekly_start,
+                'period_end': now,
+            }
+        
+        if period == 'all' or period == 'monthly':
+            monthly_start = now - timedelta(days=30)
+            data['monthly'] = {
+                **base_stats,
+                'period_start': monthly_start,
+                'period_end': now,
+            }
+        
+        if period == 'all' or period == 'yearly':
+            yearly_start = now - timedelta(days=365)
+            data['yearly'] = {
+                **base_stats,
+                'period_start': yearly_start,
+                'period_end': now,
+            }
+        
+        # If a specific period was requested, return only that period
+        if period in ['weekly', 'monthly', 'yearly']:
+            data = data.get(period, {})
+        
+        serializer = RestaurantStatisticsSerializer(data, many=False)
+        return Response(data, status=status.HTTP_200_OK)
 
 
 class EarningsView(APIView):
@@ -456,6 +463,138 @@ class PlanDistributionView(APIView):
         serializer = PlanDistributionSerializer(data, many=True)
         return Response(serializer.data)
 
+class PlanStatsAPIView(APIView):
+    def get(self, request):
+        data = []
+
+        today = now().date()
+        start_of_current_month = today.replace(day=1)
+        start_of_last_month = start_of_current_month - relativedelta(months=1)
+
+        plans = SubscriptionPlan.objects.all()
+
+        for plan in plans:
+            # Total unique paying restaurants (subadmins)
+            restaurants = PlanPayment.objects.filter(
+                plan=plan,
+                payment_status='PAID'
+            ).values('subadmin').distinct().count()
+
+            # Revenue for current month
+            current_month_revenue = PlanPayment.objects.filter(
+                plan=plan,
+                payment_status='PAID',
+                created_at__gte=start_of_current_month
+            ).aggregate(
+                total=Sum(F('plan__price'))
+            )['total'] or Decimal('0.0')
+
+            # Revenue for last month
+            last_month_revenue = PlanPayment.objects.filter(
+                plan=plan,
+                payment_status='PAID',
+                created_at__gte=start_of_last_month,
+                created_at__lt=start_of_current_month
+            ).aggregate(
+                total=Sum(F('plan__price'))
+            )['total'] or Decimal('0.0')
+
+            # Convert Decimal to float for arithmetic
+            current = float(current_month_revenue)
+            last = float(last_month_revenue)
+
+            # Calculate growth
+            if last > 0:
+                growth = ((current - last) / last) * 100
+            else:
+                growth = 0.0 if current == 0 else 100.0
+
+            data.append({
+                "plan_type": plan.plan_name,
+                "restaurants": restaurants,
+                "monthly_revenue": round(current, 2),
+                "growth": round(growth, 1)
+            })
+
+        return Response(data)
+    
+from rest_framework.exceptions import NotFound
+
+
+class SubAdminCallRecordFilterView(generics.ListAPIView):
+    serializer_class = CallRecordSerializer
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    ordering_fields = ['created_at', 'duration']
+    ordering = ['-created_at']
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        subadmin_id = self.kwargs.get('subadmin_id')
+        time_period = self.request.query_params.get('time_period', None)
+        
+        try:
+            subadmin = SubAdminProfile.objects.get(id=subadmin_id)
+        except SubAdminProfile.DoesNotExist:
+            raise NotFound("SubAdmin not found")
+        
+        queryset = CallRecord.objects.filter(restaurant=subadmin)
+        
+        if time_period:
+            now = timezone.now()
+            
+            if time_period == 'last_30_days':
+                start_date = now - timedelta(days=30)
+                queryset = queryset.filter(created_at__gte=start_date)
+                
+            elif time_period == 'last_quarter':
+                current_month = now.month
+                if current_month in [1, 2, 3]:
+                    quarter_start = datetime(now.year - 1, 10, 1)
+                elif current_month in [4, 5, 6]:
+                    quarter_start = datetime(now.year, 1, 1)
+                elif current_month in [7, 8, 9]:
+                    quarter_start = datetime(now.year, 4, 1)
+                else:
+                    quarter_start = datetime(now.year, 7, 1)
+                queryset = queryset.filter(created_at__gte=quarter_start)
+                
+            elif time_period == 'year_to_date':
+                year_start = datetime(now.year, 1, 1)
+                queryset = queryset.filter(created_at__gte=year_start)
+                
+        return queryset
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(queryset, many=True)
+        
+        time_period = request.query_params.get('time_period', None)
+        subadmin_id = self.kwargs.get('subadmin_id')
+        
+        response_data = {
+            'subadmin_id': subadmin_id,
+            'time_period': time_period or 'all_time',
+            'data': serializer.data,
+            'summary': self.get_summary_data(queryset, time_period)
+        }
+        
+        return Response(response_data)
+
+    def get_summary_data(self, queryset, time_period):
+        total_calls = queryset.count()
+        completed_calls = queryset.filter(status='completed').count()
+        total_duration = sum(call.duration for call in queryset if call.duration) or 0
+        
+        return {
+            'total_calls': total_calls,
+            'completed_calls': completed_calls,
+            'completion_rate': round((completed_calls / total_calls * 100), 2) if total_calls else 0,
+            'average_duration': round((total_duration / total_calls), 2) if total_calls else 0,
+            'total_duration': total_duration,
+            'in_progress_calls': queryset.filter(status='in-progress').count(),
+            'failed_calls': queryset.filter(status='failed').count(),
+            'transferred_calls': queryset.filter(status='transferred').count(),
+        }
 
 #######---------------------Payment Integration with Stripe---------------------#######
 
